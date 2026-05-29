@@ -1,0 +1,39 @@
+# WordPress core — never edit, never commit
+/wp-admin/
+/wp-includes/
+/wp-*.php
+/index.php
+/xmlrpc.php
+/license.txt
+/readme.html
+/wp-content/uploads/
+/wp-content/upgrade/
+/wp-content/cache/
+/wp-content/backup-db/
+/wp-content/advanced-cache.php
+/wp-content/wp-cache-config.php
+/wp-content/blogs.dir/
+/wp-content/plugins/akismet/
+
+# WordPress config (contains DB credentials)
+wp-config.php
+wp-config-local.php
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Node (if used for build tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+
+# Environment
+.env
+.env.*
