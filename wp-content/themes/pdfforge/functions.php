@@ -131,3 +131,134 @@ function pdfforge_tool_meta_save( $post_id ) {
 	update_post_meta( $post_id, '_tool_featured', isset( $_POST['tool_featured'] ) ? '1' : '0' );
 }
 add_action( 'save_post_pdfforge_tool', 'pdfforge_tool_meta_save' );
+
+/* -----------------------------------------------------------------------
+ * Homepage Settings — admin page + Settings API
+ * --------------------------------------------------------------------- */
+function pdfforge_homepage_settings_menu() {
+	add_theme_page(
+		__( 'Homepage Settings', 'pdfforge' ),
+		__( 'Homepage Settings', 'pdfforge' ),
+		'manage_options',
+		'pdfforge-homepage-settings',
+		'pdfforge_homepage_settings_page'
+	);
+}
+add_action( 'admin_menu', 'pdfforge_homepage_settings_menu' );
+
+function pdfforge_homepage_settings_init() {
+	register_setting(
+		'pdfforge_homepage',
+		'pdfforge_homepage',
+		[ 'sanitize_callback' => 'pdfforge_sanitize_homepage_options' ]
+	);
+
+	// Hero section
+	add_settings_section( 'pdfforge_hero_section', __( 'Hero Text', 'pdfforge' ), '__return_false', 'pdfforge-homepage-settings' );
+
+	$hero_fields = [
+		'hero_badge'    => [ __( 'Badge text', 'pdfforge' ),    'text' ],
+		'hero_line1'    => [ __( 'Headline line 1', 'pdfforge' ), 'text' ],
+		'hero_line2'    => [ __( 'Headline line 2 (purple)', 'pdfforge' ), 'text' ],
+		'hero_subtitle' => [ __( 'Subtitle', 'pdfforge' ),      'textarea' ],
+	];
+	foreach ( $hero_fields as $key => $info ) {
+		add_settings_field(
+			$key,
+			$info[0],
+			'pdfforge_homepage_field_cb',
+			'pdfforge-homepage-settings',
+			'pdfforge_hero_section',
+			[ 'key' => $key, 'type' => $info[1] ]
+		);
+	}
+
+	// Stats section
+	add_settings_section( 'pdfforge_stats_section', __( 'Stats', 'pdfforge' ), '__return_false', 'pdfforge-homepage-settings' );
+
+	for ( $i = 1; $i <= 4; $i++ ) {
+		add_settings_field(
+			"stat_{$i}_number",
+			/* translators: %d: stat position number */
+			sprintf( __( 'Stat %d number', 'pdfforge' ), $i ),
+			'pdfforge_homepage_field_cb',
+			'pdfforge-homepage-settings',
+			'pdfforge_stats_section',
+			[ 'key' => "stat_{$i}_number", 'type' => 'text' ]
+		);
+		add_settings_field(
+			"stat_{$i}_label",
+			sprintf( __( 'Stat %d label', 'pdfforge' ), $i ),
+			'pdfforge_homepage_field_cb',
+			'pdfforge-homepage-settings',
+			'pdfforge_stats_section',
+			[ 'key' => "stat_{$i}_label", 'type' => 'text' ]
+		);
+	}
+}
+add_action( 'admin_init', 'pdfforge_homepage_settings_init' );
+
+function pdfforge_homepage_field_cb( $args ) {
+	$options = get_option( 'pdfforge_homepage', [] );
+	$key     = $args['key'];
+	$value   = isset( $options[ $key ] ) ? $options[ $key ] : '';
+
+	if ( 'textarea' === $args['type'] ) {
+		printf(
+			'<textarea name="pdfforge_homepage[%s]" rows="3" cols="60" class="large-text">%s</textarea>',
+			esc_attr( $key ),
+			esc_textarea( $value )
+		);
+	} else {
+		printf(
+			'<input type="text" name="pdfforge_homepage[%s]" value="%s" class="regular-text">',
+			esc_attr( $key ),
+			esc_attr( $value )
+		);
+	}
+}
+
+function pdfforge_sanitize_homepage_options( $input ) {
+	$clean = [];
+	$text_fields = [
+		'hero_badge', 'hero_line1', 'hero_line2',
+		'stat_1_number', 'stat_1_label',
+		'stat_2_number', 'stat_2_label',
+		'stat_3_number', 'stat_3_label',
+		'stat_4_number', 'stat_4_label',
+	];
+	foreach ( $text_fields as $field ) {
+		if ( isset( $input[ $field ] ) ) {
+			$clean[ $field ] = sanitize_text_field( $input[ $field ] );
+		}
+	}
+	if ( isset( $input['hero_subtitle'] ) ) {
+		$clean['hero_subtitle'] = sanitize_textarea_field( $input['hero_subtitle'] );
+	}
+	return $clean;
+}
+
+function pdfforge_homepage_settings_page() {
+	if ( ! current_user_can( 'manage_options' ) ) return;
+	?>
+	<div class="wrap">
+		<h1><?php esc_html_e( 'Homepage Settings', 'pdfforge' ); ?></h1>
+		<form method="post" action="options.php">
+			<?php
+			settings_fields( 'pdfforge_homepage' );
+			do_settings_sections( 'pdfforge-homepage-settings' );
+			submit_button();
+			?>
+		</form>
+	</div>
+	<?php
+}
+
+/**
+ * Helper: get a single homepage option with a fallback default.
+ */
+function pdfforge_homepage_option( $key, $default = '' ) {
+	$options = get_option( 'pdfforge_homepage', [] );
+	$value   = isset( $options[ $key ] ) ? $options[ $key ] : '';
+	return ( '' !== $value ) ? $value : $default;
+}
