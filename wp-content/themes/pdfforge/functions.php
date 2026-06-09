@@ -79,6 +79,50 @@ function pdfforge_register_taxonomy() {
 add_action( 'init', 'pdfforge_register_taxonomy' );
 
 /* -----------------------------------------------------------------------
+ * Seed starter categories on theme activation
+ * --------------------------------------------------------------------- */
+function pdfforge_seed_categories() {
+	if ( get_option( 'pdfforge_categories_seeded' ) ) return;
+
+	$categories = [
+		[
+			'name'     => 'Convert PDF',
+			'color'    => '#4f7eff',
+			'subtitle' => 'PDF to Word, Excel, JPG & more',
+		],
+		[
+			'name'     => 'Edit PDF',
+			'color'    => '#ff6b6b',
+			'subtitle' => 'Merge, split, compress, rotate',
+		],
+		[
+			'name'     => 'Organise PDF',
+			'color'    => '#26c28e',
+			'subtitle' => 'Reorder, delete, and extract pages',
+		],
+		[
+			'name'     => 'Secure PDF',
+			'color'    => '#f7a440',
+			'subtitle' => 'Password protect and unlock PDFs',
+		],
+	];
+
+	foreach ( $categories as $cat ) {
+		if ( term_exists( $cat['name'], 'pdfforge_category' ) ) continue;
+		$result = wp_insert_term( $cat['name'], 'pdfforge_category' );
+		if ( is_wp_error( $result ) ) continue;
+		$term_id = $result['term_id'];
+		update_term_meta( $term_id, 'color', $cat['color'] );
+		update_term_meta( $term_id, 'subtitle', $cat['subtitle'] );
+		update_term_meta( $term_id, 'featured_tool_name', '' );
+		update_term_meta( $term_id, 'featured_tool_url', '' );
+	}
+
+	update_option( 'pdfforge_categories_seeded', true );
+}
+add_action( 'after_switch_theme', 'pdfforge_seed_categories' );
+
+/* -----------------------------------------------------------------------
  * Custom term-meta fields for Category taxonomy
  * --------------------------------------------------------------------- */
 function pdfforge_category_add_fields( $taxonomy ) {
