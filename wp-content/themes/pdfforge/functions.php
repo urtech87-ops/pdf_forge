@@ -79,6 +79,124 @@ function pdfforge_register_taxonomy() {
 add_action( 'init', 'pdfforge_register_taxonomy' );
 
 /* -----------------------------------------------------------------------
+ * Seed starter categories on theme activation
+ * --------------------------------------------------------------------- */
+function pdfforge_seed_categories() {
+	if ( get_option( 'pdfforge_categories_seeded' ) ) return;
+
+	$categories = [
+		[
+			'name'     => 'Convert PDF',
+			'color'    => '#4f7eff',
+			'subtitle' => 'PDF to Word, Excel, JPG & more',
+		],
+		[
+			'name'     => 'Edit PDF',
+			'color'    => '#ff6b6b',
+			'subtitle' => 'Merge, split, compress, rotate',
+		],
+		[
+			'name'     => 'Organise PDF',
+			'color'    => '#26c28e',
+			'subtitle' => 'Reorder, delete, and extract pages',
+		],
+		[
+			'name'     => 'Secure PDF',
+			'color'    => '#f7a440',
+			'subtitle' => 'Password protect and unlock PDFs',
+		],
+	];
+
+	foreach ( $categories as $cat ) {
+		if ( term_exists( $cat['name'], 'pdfforge_category' ) ) continue;
+		$result = wp_insert_term( $cat['name'], 'pdfforge_category' );
+		if ( is_wp_error( $result ) ) continue;
+		$term_id = $result['term_id'];
+		update_term_meta( $term_id, 'color', $cat['color'] );
+		update_term_meta( $term_id, 'subtitle', $cat['subtitle'] );
+		update_term_meta( $term_id, 'featured_tool_name', '' );
+		update_term_meta( $term_id, 'featured_tool_url', '' );
+	}
+
+	update_option( 'pdfforge_categories_seeded', true );
+}
+add_action( 'after_switch_theme', 'pdfforge_seed_categories' );
+
+/* -----------------------------------------------------------------------
+ * Custom term-meta fields for Category taxonomy
+ * --------------------------------------------------------------------- */
+function pdfforge_category_add_fields( $taxonomy ) {
+	wp_nonce_field( 'pdfforge_cat_meta_save', 'pdfforge_cat_nonce' );
+	?>
+	<div class="form-field">
+		<label for="pdfforge_cat_subtitle"><?php esc_html_e( 'Subtitle', 'pdfforge' ); ?></label>
+		<input type="text" name="pdfforge_cat_subtitle" id="pdfforge_cat_subtitle" value="">
+	</div>
+	<div class="form-field">
+		<label for="pdfforge_cat_color"><?php esc_html_e( 'Card colour', 'pdfforge' ); ?></label>
+		<input type="color" name="pdfforge_cat_color" id="pdfforge_cat_color" value="#7c5cff">
+	</div>
+	<div class="form-field">
+		<label for="pdfforge_cat_featured_tool_name"><?php esc_html_e( 'Featured tool name', 'pdfforge' ); ?></label>
+		<input type="text" name="pdfforge_cat_featured_tool_name" id="pdfforge_cat_featured_tool_name" value="">
+	</div>
+	<div class="form-field">
+		<label for="pdfforge_cat_featured_tool_url"><?php esc_html_e( 'Featured tool URL', 'pdfforge' ); ?></label>
+		<input type="url" name="pdfforge_cat_featured_tool_url" id="pdfforge_cat_featured_tool_url" value="">
+	</div>
+	<?php
+}
+add_action( 'pdfforge_category_add_form_fields', 'pdfforge_category_add_fields' );
+
+function pdfforge_category_edit_fields( $term, $taxonomy ) {
+	$subtitle            = get_term_meta( $term->term_id, 'subtitle', true );
+	$color               = get_term_meta( $term->term_id, 'color', true ) ?: '#7c5cff';
+	$featured_tool_name  = get_term_meta( $term->term_id, 'featured_tool_name', true );
+	$featured_tool_url   = get_term_meta( $term->term_id, 'featured_tool_url', true );
+	wp_nonce_field( 'pdfforge_cat_meta_save', 'pdfforge_cat_nonce' );
+	?>
+	<tr class="form-field">
+		<th><label for="pdfforge_cat_subtitle"><?php esc_html_e( 'Subtitle', 'pdfforge' ); ?></label></th>
+		<td><input type="text" name="pdfforge_cat_subtitle" id="pdfforge_cat_subtitle" value="<?php echo esc_attr( $subtitle ); ?>"></td>
+	</tr>
+	<tr class="form-field">
+		<th><label for="pdfforge_cat_color"><?php esc_html_e( 'Card colour', 'pdfforge' ); ?></label></th>
+		<td><input type="color" name="pdfforge_cat_color" id="pdfforge_cat_color" value="<?php echo esc_attr( $color ); ?>"></td>
+	</tr>
+	<tr class="form-field">
+		<th><label for="pdfforge_cat_featured_tool_name"><?php esc_html_e( 'Featured tool name', 'pdfforge' ); ?></label></th>
+		<td><input type="text" name="pdfforge_cat_featured_tool_name" id="pdfforge_cat_featured_tool_name" value="<?php echo esc_attr( $featured_tool_name ); ?>"></td>
+	</tr>
+	<tr class="form-field">
+		<th><label for="pdfforge_cat_featured_tool_url"><?php esc_html_e( 'Featured tool URL', 'pdfforge' ); ?></label></th>
+		<td><input type="url" name="pdfforge_cat_featured_tool_url" id="pdfforge_cat_featured_tool_url" value="<?php echo esc_attr( $featured_tool_url ); ?>"></td>
+	</tr>
+	<?php
+}
+add_action( 'pdfforge_category_edit_form_fields', 'pdfforge_category_edit_fields', 10, 2 );
+
+function pdfforge_category_save_meta( $term_id ) {
+	if ( ! isset( $_POST['pdfforge_cat_nonce'] ) ) return;
+	if ( ! wp_verify_nonce( $_POST['pdfforge_cat_nonce'], 'pdfforge_cat_meta_save' ) ) return;
+	if ( ! current_user_can( 'manage_categories' ) ) return;
+
+	if ( isset( $_POST['pdfforge_cat_subtitle'] ) ) {
+		update_term_meta( $term_id, 'subtitle', sanitize_text_field( $_POST['pdfforge_cat_subtitle'] ) );
+	}
+	if ( isset( $_POST['pdfforge_cat_color'] ) ) {
+		update_term_meta( $term_id, 'color', sanitize_hex_color( $_POST['pdfforge_cat_color'] ) );
+	}
+	if ( isset( $_POST['pdfforge_cat_featured_tool_name'] ) ) {
+		update_term_meta( $term_id, 'featured_tool_name', sanitize_text_field( $_POST['pdfforge_cat_featured_tool_name'] ) );
+	}
+	if ( isset( $_POST['pdfforge_cat_featured_tool_url'] ) ) {
+		update_term_meta( $term_id, 'featured_tool_url', esc_url_raw( $_POST['pdfforge_cat_featured_tool_url'] ) );
+	}
+}
+add_action( 'created_pdfforge_category', 'pdfforge_category_save_meta' );
+add_action( 'edited_pdfforge_category', 'pdfforge_category_save_meta' );
+
+/* -----------------------------------------------------------------------
  * Custom meta fields for Tool CPT (icon colour, featured flag)
  * --------------------------------------------------------------------- */
 function pdfforge_tool_meta_boxes() {

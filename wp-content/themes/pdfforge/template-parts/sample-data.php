@@ -4,41 +4,38 @@
  * once each section is wired to the admin.
  */
 
+function pdfforge_get_categories() {
+	$terms = get_terms( [
+		'taxonomy'   => 'pdfforge_category',
+		'hide_empty' => false,
+		'orderby'    => 'name',
+		'order'      => 'ASC',
+	] );
+
+	if ( is_wp_error( $terms ) || empty( $terms ) ) return [];
+
+	$categories = [];
+	foreach ( $terms as $term ) {
+		$color              = get_term_meta( $term->term_id, 'color', true ) ?: '#7c5cff';
+		$subtitle           = get_term_meta( $term->term_id, 'subtitle', true );
+		$featured_tool_name = get_term_meta( $term->term_id, 'featured_tool_name', true );
+		$featured_tool_url  = get_term_meta( $term->term_id, 'featured_tool_url', true ) ?: '#';
+
+		$categories[] = [
+			'title'        => $term->name,
+			'subtitle'     => $subtitle,
+			'tool_count'   => (int) $term->count,
+			'color'        => $color,
+			'featured'     => $featured_tool_name,
+			'featured_url' => $featured_tool_url,
+		];
+	}
+	return $categories;
+}
+
+// Thin wrapper so front-page.php still works without edits in this step.
 function pdfforge_sample_categories() {
-	return [
-		[
-			'title'        => 'Convert PDF',
-			'subtitle'     => 'PDF to Word, Excel, JPG & more',
-			'tool_count'   => 12,
-			'color'        => '#4f7eff',
-			'featured'     => 'PDF to Word',
-			'featured_url' => '#',
-		],
-		[
-			'title'        => 'Edit PDF',
-			'subtitle'     => 'Merge, split, compress, rotate',
-			'tool_count'   => 9,
-			'color'        => '#ff6b6b',
-			'featured'     => 'Merge PDF',
-			'featured_url' => '#',
-		],
-		[
-			'title'        => 'Organise PDF',
-			'subtitle'     => 'Reorder, delete, and extract pages',
-			'tool_count'   => 6,
-			'color'        => '#26c28e',
-			'featured'     => 'Split PDF',
-			'featured_url' => '#',
-		],
-		[
-			'title'        => 'Secure PDF',
-			'subtitle'     => 'Password protect and unlock PDFs',
-			'tool_count'   => 4,
-			'color'        => '#f7a440',
-			'featured'     => 'Protect PDF',
-			'featured_url' => '#',
-		],
-	];
+	return pdfforge_get_categories();
 }
 
 function pdfforge_get_stats() {
