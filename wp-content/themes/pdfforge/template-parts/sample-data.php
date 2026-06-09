@@ -41,13 +41,26 @@ function pdfforge_sample_categories() {
 	];
 }
 
-function pdfforge_sample_stats() {
-	return [
-		[ 'number' => '31+',    'label' => 'Free tools' ],
-		[ 'number' => '4M+',    'label' => 'Files processed' ],
-		[ 'number' => '180+',   'label' => 'Countries served' ],
-		[ 'number' => '100%',   'label' => 'Browser-based' ],
+function pdfforge_get_stats() {
+	$defaults = [
+		[ 'number' => '31+',  'label' => 'Free tools' ],
+		[ 'number' => '4M+',  'label' => 'Files processed' ],
+		[ 'number' => '180+', 'label' => 'Countries served' ],
+		[ 'number' => '100%', 'label' => 'Browser-based' ],
 	];
+	$stats = [];
+	for ( $i = 1; $i <= 4; $i++ ) {
+		$idx    = $i - 1;
+		$number = pdfforge_homepage_option( "stat_{$i}_number", $defaults[ $idx ]['number'] );
+		$label  = pdfforge_homepage_option( "stat_{$i}_label",  $defaults[ $idx ]['label'] );
+		$stats[] = [ 'number' => $number, 'label' => $label ];
+	}
+	return $stats;
+}
+
+// Thin wrapper so front-page.php keeps working without edits in this step.
+function pdfforge_sample_stats() {
+	return pdfforge_get_stats();
 }
 
 function pdfforge_sample_tools() {
