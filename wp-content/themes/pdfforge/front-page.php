@@ -12,15 +12,15 @@ get_header();
 	<section class="hero">
 		<div class="container hero-inner">
 
-			<span class="hero-pill"><?php esc_html_e( 'No sign-up needed', 'pdfforge' ); ?></span>
+			<span class="hero-pill"><?php echo esc_html( pdfforge_homepage_option( 'hero_badge', __( 'No sign-up needed', 'pdfforge' ) ) ); ?></span>
 
 			<h1 class="hero-title">
-				<span class="hero-line-1"><?php esc_html_e( 'Every PDF tool you need,', 'pdfforge' ); ?></span>
-				<span class="hero-line-2"><?php esc_html_e( 'completely free.', 'pdfforge' ); ?></span>
+				<span class="hero-line-1"><?php echo esc_html( pdfforge_homepage_option( 'hero_line1', __( 'Every PDF tool you need,', 'pdfforge' ) ) ); ?></span>
+				<span class="hero-line-2"><?php echo esc_html( pdfforge_homepage_option( 'hero_line2', __( 'completely free.', 'pdfforge' ) ) ); ?></span>
 			</h1>
 
 			<p class="hero-subtitle">
-				<?php esc_html_e( 'Merge, split, compress, convert — all in your browser. Your files never leave your device.', 'pdfforge' ); ?>
+				<?php echo esc_html( pdfforge_homepage_option( 'hero_subtitle', __( 'Merge, split, compress, convert — all in your browser. Your files never leave your device.', 'pdfforge' ) ) ); ?>
 			</p>
 
 			<div class="hero-search-wrap">
