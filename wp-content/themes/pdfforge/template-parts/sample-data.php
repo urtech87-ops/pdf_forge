@@ -60,22 +60,85 @@ function pdfforge_sample_stats() {
 	return pdfforge_get_stats();
 }
 
-function pdfforge_sample_tools() {
-	return [
-		[ 'name' => 'Merge PDF',     'description' => 'Combine multiple PDFs into one file.',           'color' => '#ff6b6b', 'symbol' => '🔀', 'category' => 'Edit PDF',     'url' => '#' ],
-		[ 'name' => 'Split PDF',     'description' => 'Extract pages or split a PDF into many.',        'color' => '#4f7eff', 'symbol' => '✂️', 'category' => 'Edit PDF',     'url' => '#' ],
-		[ 'name' => 'Compress PDF',  'description' => 'Reduce file size without losing quality.',        'color' => '#26c28e', 'symbol' => '🗜️', 'category' => 'Edit PDF',     'url' => '#' ],
-		[ 'name' => 'PDF to Word',   'description' => 'Convert PDF files to editable Word documents.',  'color' => '#4f7eff', 'symbol' => '📝', 'category' => 'Convert PDF',  'url' => '#' ],
-		[ 'name' => 'PDF to JPG',    'description' => 'Turn each PDF page into a JPG image.',           'color' => '#f7a440', 'symbol' => '🖼️', 'category' => 'Convert PDF',  'url' => '#' ],
-		[ 'name' => 'Word to PDF',   'description' => 'Convert Word documents to PDF in seconds.',      'color' => '#26c28e', 'symbol' => '📄', 'category' => 'Convert PDF',  'url' => '#' ],
-		[ 'name' => 'Rotate PDF',    'description' => 'Rotate one or all pages in any direction.',      'color' => '#ff6b6b', 'symbol' => '🔄', 'category' => 'Organise PDF', 'url' => '#' ],
-		[ 'name' => 'Protect PDF',   'description' => 'Add a password to keep your PDF secure.',        'color' => '#7c5cff', 'symbol' => '🔒', 'category' => 'Secure PDF',   'url' => '#' ],
-		[ 'name' => 'Unlock PDF',    'description' => 'Remove password protection from a PDF.',         'color' => '#f7a440', 'symbol' => '🔓', 'category' => 'Secure PDF',   'url' => '#' ],
+/**
+ * Live query of the Tool CPT.
+ *
+ * Accepted $args keys:
+ *   category (string) — pdfforge_category slug to filter by
+ *   limit    (int)    — max posts (-1 = all)
+ *
+ * Returned array keys per tool:
+ *   name, description, color, symbol (emoji or placeholder),
+ *   icon_url (image URL or empty string), category (term name), url
+ */
+function pdfforge_get_tools( $args = [] ) {
+	$category_slug = isset( $args['category'] ) ? (string) $args['category'] : '';
+	$limit         = isset( $args['limit'] )    ? (int)    $args['limit']    : -1;
+
+	$query_args = [
+		'post_type'      => 'pdfforge_tool',
+		'post_status'    => 'publish',
+		'posts_per_page' => $limit,
+		'orderby'        => 'menu_order',
+		'order'          => 'ASC',
+		'no_found_rows'  => true,
 	];
+
+	if ( $category_slug ) {
+		$query_args['tax_query'] = [ [
+			'taxonomy' => 'pdfforge_category',
+			'field'    => 'slug',
+			'terms'    => $category_slug,
+		] ];
+	}
+
+	$query = new WP_Query( $query_args );
+	$tools = [];
+
+	if ( $query->have_posts() ) {
+		while ( $query->have_posts() ) {
+			$query->the_post();
+			$post_id = get_the_ID();
+
+			$icon_image_id = absint( get_post_meta( $post_id, '_tool_icon_image_id', true ) );
+			$icon_url      = $icon_image_id ? wp_get_attachment_image_url( $icon_image_id, 'thumbnail' ) : '';
+
+			$terms    = get_the_terms( $post_id, 'pdfforge_category' );
+			$cat_name = ( $terms && ! is_wp_error( $terms ) ) ? $terms[0]->name : '';
+
+			// Resolve color: color_override if set, else category color, else purple default.
+			$color_override = get_post_meta( $post_id, '_tool_color_override', true );
+			if ( $color_override ) {
+				$color = $color_override;
+			} elseif ( $terms && ! is_wp_error( $terms ) ) {
+				$color = get_term_meta( $terms[0]->term_id, 'color', true ) ?: '#7c5cff';
+			} else {
+				$color = '#7c5cff';
+			}
+
+			$tools[] = [
+				'name'        => get_the_title(),
+				'description' => get_post_meta( $post_id, '_tool_description', true ),
+				'color'       => $color,
+				'symbol'      => get_post_meta( $post_id, '_tool_icon_emoji', true ) ?: '📄',
+				'icon_url'    => $icon_url ?: '',
+				'category'    => $cat_name,
+				'url'         => get_permalink(),
+			];
+		}
+		wp_reset_postdata();
+	}
+
+	return $tools;
+}
+
+// Thin wrapper — keeps existing callers working unchanged.
+function pdfforge_sample_tools() {
+	return pdfforge_get_tools();
 }
 
 function pdfforge_sample_nav_tools() {
-	$tools = pdfforge_sample_tools();
+	$tools  = pdfforge_get_tools();
 	$by_cat = [];
 	foreach ( $tools as $t ) {
 		$by_cat[ $t['category'] ][] = $t;
