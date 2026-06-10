@@ -141,21 +141,39 @@ function pdfforge_sample_nav_tools() {
 /* -----------------------------------------------------------------------
  * Render helpers (called from header/footer/front-page)
  * --------------------------------------------------------------------- */
+
+/** Render the icon for a tool — <img> if icon_url is set, else emoji. */
+function pdfforge_render_tool_icon( $tool ) {
+	if ( ! empty( $tool['icon_url'] ) ) {
+		printf(
+			'<img src="%s" alt="%s" style="width:1em;height:1em;object-fit:contain">',
+			esc_url( $tool['icon_url'] ),
+			esc_attr( $tool['name'] )
+		);
+	} else {
+		echo esc_html( $tool['symbol'] );
+	}
+}
+
 function pdfforge_render_nav_dropdown() {
-	$by_cat = pdfforge_sample_nav_tools();
+	$by_cat = pdfforge_get_tools();
+	// Group by category name.
+	$grouped = [];
+	foreach ( $by_cat as $t ) {
+		$grouped[ $t['category'] ][] = $t;
+	}
 	echo '<div class="dropdown-grid">';
-	foreach ( $by_cat as $cat => $tools ) {
+	foreach ( $grouped as $cat => $tools ) {
 		echo '<div class="dropdown-section">';
 		echo '<p class="dropdown-cat-title">' . esc_html( $cat ) . '</p>';
 		echo '<ul>';
 		foreach ( $tools as $t ) {
-			printf(
-				'<li><a href="%s"><span class="dd-icon" style="background:%s">%s</span>%s</a></li>',
-				esc_url( $t['url'] ),
-				esc_attr( $t['color'] ),
-				esc_html( $t['symbol'] ),
-				esc_html( $t['name'] )
-			);
+			echo '<li><a href="' . esc_url( $t['url'] ) . '">';
+			echo '<span class="dd-icon" style="background:' . esc_attr( $t['color'] ) . '">';
+			pdfforge_render_tool_icon( $t );
+			echo '</span>';
+			echo esc_html( $t['name'] );
+			echo '</a></li>';
 		}
 		echo '</ul></div>';
 	}
@@ -163,8 +181,12 @@ function pdfforge_render_nav_dropdown() {
 }
 
 function pdfforge_render_mobile_nav() {
-	$by_cat = pdfforge_sample_nav_tools();
-	foreach ( $by_cat as $cat => $tools ) {
+	$all_tools = pdfforge_get_tools();
+	$grouped   = [];
+	foreach ( $all_tools as $t ) {
+		$grouped[ $t['category'] ][] = $t;
+	}
+	foreach ( $grouped as $cat => $tools ) {
 		echo '<p class="mobile-nav-cat">' . esc_html( $cat ) . '</p>';
 		echo '<ul class="mobile-nav-list">';
 		foreach ( $tools as $t ) {
@@ -179,9 +201,8 @@ function pdfforge_render_mobile_nav() {
 }
 
 function pdfforge_render_footer_tools() {
-	$tools = pdfforge_sample_tools();
-	$shown = array_slice( $tools, 0, 6 );
-	foreach ( $shown as $t ) {
+	$tools = pdfforge_get_tools( [ 'limit' => 6 ] );
+	foreach ( $tools as $t ) {
 		printf( '<li><a href="%s">%s</a></li>', esc_url( $t['url'] ), esc_html( $t['name'] ) );
 	}
 }
