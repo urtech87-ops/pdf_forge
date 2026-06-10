@@ -197,6 +197,25 @@ add_action( 'created_pdfforge_category', 'pdfforge_category_save_meta' );
 add_action( 'edited_pdfforge_category', 'pdfforge_category_save_meta' );
 
 /* -----------------------------------------------------------------------
+ * Color helper: color_override > first category color > #7c5cff
+ * Used everywhere a tool colour is rendered on the front end.
+ * --------------------------------------------------------------------- */
+function pdfforge_get_tool_color( $tool_id ) {
+	$override = get_post_meta( $tool_id, '_tool_color_override', true );
+	if ( $override ) {
+		return $override;
+	}
+	$terms = get_the_terms( $tool_id, 'pdfforge_category' );
+	if ( $terms && ! is_wp_error( $terms ) ) {
+		$cat_color = get_term_meta( $terms[0]->term_id, 'color', true );
+		if ( $cat_color ) {
+			return $cat_color;
+		}
+	}
+	return '#7c5cff';
+}
+
+/* -----------------------------------------------------------------------
  * Enqueue wp.media on Tool edit screen (needed for icon image picker)
  * --------------------------------------------------------------------- */
 function pdfforge_admin_enqueue_media() {

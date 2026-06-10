@@ -106,15 +106,7 @@ function pdfforge_get_tools( $args = [] ) {
 			$terms    = get_the_terms( $post_id, 'pdfforge_category' );
 			$cat_name = ( $terms && ! is_wp_error( $terms ) ) ? $terms[0]->name : '';
 
-			// Resolve color: color_override if set, else category color, else purple default.
-			$color_override = get_post_meta( $post_id, '_tool_color_override', true );
-			if ( $color_override ) {
-				$color = $color_override;
-			} elseif ( $terms && ! is_wp_error( $terms ) ) {
-				$color = get_term_meta( $terms[0]->term_id, 'color', true ) ?: '#7c5cff';
-			} else {
-				$color = '#7c5cff';
-			}
+			$color = pdfforge_get_tool_color( $post_id );
 
 			$tools[] = [
 				'name'        => get_the_title(),
