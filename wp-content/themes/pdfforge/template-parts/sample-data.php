@@ -200,6 +200,10 @@ function pdfforge_render_mobile_nav() {
 	}
 }
 
+/**
+ * Render up to 6 tool links for the footer "Tools" column.
+ * Reads from the Tool CPT — no static fallback needed.
+ */
 function pdfforge_render_footer_tools() {
 	$tools = pdfforge_get_tools( [ 'limit' => 6 ] );
 	foreach ( $tools as $t ) {
