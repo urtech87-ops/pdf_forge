@@ -197,6 +197,69 @@ add_action( 'created_pdfforge_category', 'pdfforge_category_save_meta' );
 add_action( 'edited_pdfforge_category', 'pdfforge_category_save_meta' );
 
 /* -----------------------------------------------------------------------
+ * Seed starter Tool CPT posts on theme activation (idempotent)
+ * --------------------------------------------------------------------- */
+function pdfforge_seed_tools() {
+	if ( get_option( 'pdfforge_tools_seeded' ) ) return;
+
+	$starter_tools = [
+		[
+			'title'       => 'Merge PDF',
+			'slug'        => 'merge-pdf',
+			'description' => 'Combine multiple PDFs into one file.',
+			'emoji'       => '🔀',
+			'category'    => 'Edit PDF',
+		],
+		[
+			'title'       => 'Split PDF',
+			'slug'        => 'split-pdf',
+			'description' => 'Extract pages or split a PDF into many.',
+			'emoji'       => '✂️',
+			'category'    => 'Edit PDF',
+		],
+		[
+			'title'       => 'Compress PDF',
+			'slug'        => 'compress-pdf',
+			'description' => 'Reduce file size without losing quality.',
+			'emoji'       => '🗜️',
+			'category'    => 'Edit PDF',
+		],
+	];
+
+	foreach ( $starter_tools as $tool ) {
+		// Skip if a post with this slug already exists.
+		$existing = get_page_by_path( $tool['slug'], OBJECT, 'pdfforge_tool' );
+		if ( $existing ) continue;
+
+		$post_id = wp_insert_post( [
+			'post_type'    => 'pdfforge_tool',
+			'post_status'  => 'publish',
+			'post_title'   => $tool['title'],
+			'post_name'    => $tool['slug'],
+			'post_content' => sprintf(
+				'<h1>%s</h1><p>Coming soon — this tool is being built.</p>',
+				esc_html( $tool['title'] )
+			),
+		] );
+
+		if ( is_wp_error( $post_id ) || ! $post_id ) continue;
+
+		update_post_meta( $post_id, '_tool_description', $tool['description'] );
+		update_post_meta( $post_id, '_tool_icon_emoji',  $tool['emoji'] );
+		update_post_meta( $post_id, '_tool_icon_image_id', 0 );
+		update_post_meta( $post_id, '_tool_color_override', '' );
+
+		$term = get_term_by( 'name', $tool['category'], 'pdfforge_category' );
+		if ( $term ) {
+			wp_set_post_terms( $post_id, [ $term->term_id ], 'pdfforge_category' );
+		}
+	}
+
+	update_option( 'pdfforge_tools_seeded', true );
+}
+add_action( 'after_switch_theme', 'pdfforge_seed_tools' );
+
+/* -----------------------------------------------------------------------
  * Color helper: color_override > first category color > #7c5cff
  * Used everywhere a tool colour is rendered on the front end.
  * --------------------------------------------------------------------- */
