@@ -414,6 +414,100 @@ function pdfforge_homepage_settings_page() {
 	<?php
 }
 
+/* -----------------------------------------------------------------------
+ * Seed starter tools (Tool CPT) on theme activation
+ * Version-keyed: bump PDFFORGE_TOOLS_SEED_VERSION to re-seed all posts.
+ * --------------------------------------------------------------------- */
+define( 'PDFFORGE_TOOLS_SEED_VERSION', '1.1' );
+
+function pdfforge_seed_tools() {
+	if ( get_option( 'pdfforge_tools_seeded' ) === PDFFORGE_TOOLS_SEED_VERSION ) return;
+
+	$merge_pdf_content = '
+<p>Merge PDF lets you combine two or more PDF documents into a single file in seconds — without installing any software. Everything runs directly in your browser using your device\'s own processing power, so your files are never uploaded to a server and never leave your device.</p>
+
+<p>Because processing happens locally, Merge PDF is completely private. There\'s no account required, no file size cap imposed by a server, and nothing stored in the cloud. Whether you\'re joining a contract with its exhibit, combining scanned pages, or assembling a multi-chapter report, the merged result is ready to download the moment processing is done.</p>
+
+<h2>Frequently Asked Questions</h2>
+
+<h3>Can I merge more than 10 PDFs?</h3>
+<p>Yes. There is no hard limit on the number of files. You can add as many PDFs as you like, though very large collections will use more of your device\'s memory. If your browser becomes sluggish, try merging in smaller batches.</p>
+
+<h3>Do my files leave my device?</h3>
+<p>No. All processing is done locally in your browser using pdf-lib, a JavaScript library that runs entirely on your device. Your PDFs are never uploaded to PDFForge servers or any third party.</p>
+
+<h3>Is there a file size limit?</h3>
+<p>There is no server-side size limit because no server is involved. The practical limit is your browser\'s available memory. We show a warning when a single file exceeds 50 MB or your total selection exceeds 100 MB, as very large files can slow down or freeze the browser tab.</p>
+
+<h3>Does the page order match what I uploaded?</h3>
+<p>Yes. Pages appear in the merged PDF in exactly the order shown in the file list. You can drag the handles to reorder files before clicking Merge, and the output will reflect that order precisely.</p>
+';
+
+	$tools = [
+		[
+			'title'    => 'Merge PDF',
+			'slug'     => 'merge-pdf',
+			'content'  => $merge_pdf_content,
+			'color'    => '#ff6b6b',
+			'symbol'   => '🔀',
+			'category' => 'Edit PDF',
+			'featured' => '1',
+		],
+		[
+			'title'    => 'Split PDF',
+			'slug'     => 'split-pdf',
+			'content'  => '<p>Coming soon — check back shortly.</p>',
+			'color'    => '#4f7eff',
+			'symbol'   => '✂️',
+			'category' => 'Edit PDF',
+			'featured' => '1',
+		],
+		[
+			'title'    => 'Compress PDF',
+			'slug'     => 'compress-pdf',
+			'content'  => '<p>Coming soon — check back shortly.</p>',
+			'color'    => '#26c28e',
+			'symbol'   => '🗜️',
+			'category' => 'Edit PDF',
+			'featured' => '1',
+		],
+	];
+
+	foreach ( $tools as $tool ) {
+		$existing = get_page_by_path( $tool['slug'], OBJECT, 'pdfforge_tool' );
+
+		$post_data = [
+			'post_title'   => $tool['title'],
+			'post_name'    => $tool['slug'],
+			'post_content' => $tool['content'],
+			'post_status'  => 'publish',
+			'post_type'    => 'pdfforge_tool',
+		];
+
+		if ( $existing ) {
+			$post_data['ID'] = $existing->ID;
+			$post_id = wp_update_post( $post_data );
+		} else {
+			$post_id = wp_insert_post( $post_data );
+		}
+
+		if ( is_wp_error( $post_id ) || ! $post_id ) continue;
+
+		update_post_meta( $post_id, '_tool_icon_color', $tool['color'] );
+		update_post_meta( $post_id, '_tool_icon_symbol', $tool['symbol'] );
+		update_post_meta( $post_id, '_tool_featured', $tool['featured'] );
+
+		// Assign to category taxonomy
+		$term = get_term_by( 'name', $tool['category'], 'pdfforge_category' );
+		if ( $term ) {
+			wp_set_post_terms( $post_id, [ $term->term_id ], 'pdfforge_category' );
+		}
+	}
+
+	update_option( 'pdfforge_tools_seeded', PDFFORGE_TOOLS_SEED_VERSION );
+}
+add_action( 'after_switch_theme', 'pdfforge_seed_tools' );
+
 /**
  * Helper: get a single homepage option with a fallback default.
  */
