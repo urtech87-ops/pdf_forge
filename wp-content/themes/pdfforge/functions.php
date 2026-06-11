@@ -197,7 +197,101 @@ add_action( 'created_pdfforge_category', 'pdfforge_category_save_meta' );
 add_action( 'edited_pdfforge_category', 'pdfforge_category_save_meta' );
 
 /* -----------------------------------------------------------------------
- * Custom meta fields for Tool CPT (icon colour, featured flag)
+ * Seed starter Tool CPT posts on theme activation (idempotent)
+ * --------------------------------------------------------------------- */
+function pdfforge_seed_tools() {
+	if ( get_option( 'pdfforge_tools_seeded' ) ) return;
+
+	$starter_tools = [
+		[
+			'title'       => 'Merge PDF',
+			'slug'        => 'merge-pdf',
+			'description' => 'Combine multiple PDFs into one file.',
+			'emoji'       => '🔀',
+			'category'    => 'Edit PDF',
+		],
+		[
+			'title'       => 'Split PDF',
+			'slug'        => 'split-pdf',
+			'description' => 'Extract pages or split a PDF into many.',
+			'emoji'       => '✂️',
+			'category'    => 'Edit PDF',
+		],
+		[
+			'title'       => 'Compress PDF',
+			'slug'        => 'compress-pdf',
+			'description' => 'Reduce file size without losing quality.',
+			'emoji'       => '🗜️',
+			'category'    => 'Edit PDF',
+		],
+	];
+
+	foreach ( $starter_tools as $tool ) {
+		// Skip if a post with this slug already exists.
+		$existing = get_page_by_path( $tool['slug'], OBJECT, 'pdfforge_tool' );
+		if ( $existing ) continue;
+
+		$post_id = wp_insert_post( [
+			'post_type'    => 'pdfforge_tool',
+			'post_status'  => 'publish',
+			'post_title'   => $tool['title'],
+			'post_name'    => $tool['slug'],
+			'post_content' => sprintf(
+				'<h1>%s</h1><p>Coming soon — this tool is being built.</p>',
+				esc_html( $tool['title'] )
+			),
+		] );
+
+		if ( is_wp_error( $post_id ) || ! $post_id ) continue;
+
+		update_post_meta( $post_id, '_tool_description', $tool['description'] );
+		update_post_meta( $post_id, '_tool_icon_emoji',  $tool['emoji'] );
+		update_post_meta( $post_id, '_tool_icon_image_id', 0 );
+		update_post_meta( $post_id, '_tool_color_override', '' );
+
+		$term = get_term_by( 'name', $tool['category'], 'pdfforge_category' );
+		if ( $term ) {
+			wp_set_post_terms( $post_id, [ $term->term_id ], 'pdfforge_category' );
+		}
+	}
+
+	update_option( 'pdfforge_tools_seeded', true );
+}
+add_action( 'after_switch_theme', 'pdfforge_seed_tools' );
+
+/* -----------------------------------------------------------------------
+ * Color helper: color_override > first category color > #7c5cff
+ * Used everywhere a tool colour is rendered on the front end.
+ * --------------------------------------------------------------------- */
+function pdfforge_get_tool_color( $tool_id ) {
+	$override = get_post_meta( $tool_id, '_tool_color_override', true );
+	if ( $override ) {
+		return $override;
+	}
+	$terms = get_the_terms( $tool_id, 'pdfforge_category' );
+	if ( $terms && ! is_wp_error( $terms ) ) {
+		$cat_color = get_term_meta( $terms[0]->term_id, 'color', true );
+		if ( $cat_color ) {
+			return $cat_color;
+		}
+	}
+	return '#7c5cff';
+}
+
+/* -----------------------------------------------------------------------
+ * Enqueue wp.media on Tool edit screen (needed for icon image picker)
+ * --------------------------------------------------------------------- */
+function pdfforge_admin_enqueue_media() {
+	$screen = get_current_screen();
+	if ( $screen && 'pdfforge_tool' === $screen->post_type ) {
+		wp_enqueue_media();
+	}
+}
+add_action( 'admin_enqueue_scripts', 'pdfforge_admin_enqueue_media' );
+
+/* -----------------------------------------------------------------------
+ * Tool Details meta box
+ * Fields: description, icon_emoji, icon_image (media), color_override
  * --------------------------------------------------------------------- */
 function pdfforge_tool_meta_boxes() {
 	add_meta_box(
@@ -213,24 +307,81 @@ add_action( 'add_meta_boxes', 'pdfforge_tool_meta_boxes' );
 
 function pdfforge_tool_meta_callback( $post ) {
 	wp_nonce_field( 'pdfforge_tool_meta_save', 'pdfforge_tool_nonce' );
-	$icon_color  = get_post_meta( $post->ID, '_tool_icon_color', true ) ?: '#7c5cff';
-	$icon_symbol = get_post_meta( $post->ID, '_tool_icon_symbol', true ) ?: '📄';
-	$featured    = get_post_meta( $post->ID, '_tool_featured', true );
+	$description    = get_post_meta( $post->ID, '_tool_description', true );
+	$icon_emoji     = get_post_meta( $post->ID, '_tool_icon_emoji', true );
+	$icon_image_id  = absint( get_post_meta( $post->ID, '_tool_icon_image_id', true ) );
+	$color_override = get_post_meta( $post->ID, '_tool_color_override', true );
+	$preview_url    = $icon_image_id ? wp_get_attachment_image_url( $icon_image_id, 'thumbnail' ) : '';
 	?>
-	<p>
-		<label><?php esc_html_e( 'Icon colour', 'pdfforge' ); ?><br>
-		<input type="color" name="tool_icon_color" value="<?php echo esc_attr( $icon_color ); ?>"></label>
-	</p>
-	<p>
-		<label><?php esc_html_e( 'Icon symbol / emoji', 'pdfforge' ); ?><br>
-		<input type="text" name="tool_icon_symbol" value="<?php echo esc_attr( $icon_symbol ); ?>" style="width:80px"></label>
-	</p>
-	<p>
-		<label>
-		<input type="checkbox" name="tool_featured" value="1" <?php checked( $featured, '1' ); ?>>
-		<?php esc_html_e( 'Show in "Popular Tools"', 'pdfforge' ); ?>
-		</label>
-	</p>
+	<table class="form-table" style="width:100%">
+		<tr>
+			<th style="width:200px"><label for="tool_description"><?php esc_html_e( 'Description', 'pdfforge' ); ?></label></th>
+			<td>
+				<textarea name="tool_description" id="tool_description" rows="2" style="width:100%"><?php echo esc_textarea( $description ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'One-line description shown on the homepage grid.', 'pdfforge' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th><label for="tool_icon_emoji"><?php esc_html_e( 'Icon emoji', 'pdfforge' ); ?></label></th>
+			<td>
+				<input type="text" name="tool_icon_emoji" id="tool_icon_emoji" value="<?php echo esc_attr( $icon_emoji ); ?>" style="width:80px">
+				<p class="description"><?php esc_html_e( 'Single emoji used when no icon image is set.', 'pdfforge' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th><?php esc_html_e( 'Icon image', 'pdfforge' ); ?></th>
+			<td>
+				<input type="hidden" name="tool_icon_image_id" id="pdfforge_icon_image_id" value="<?php echo esc_attr( $icon_image_id ?: '' ); ?>">
+				<div id="pdfforge_icon_image_preview" style="margin-bottom:8px">
+					<?php if ( $preview_url ) : ?>
+						<img src="<?php echo esc_url( $preview_url ); ?>" style="max-width:100px;max-height:100px" alt="">
+					<?php endif; ?>
+				</div>
+				<button type="button" class="button" id="pdfforge_icon_image_btn"><?php esc_html_e( 'Select image', 'pdfforge' ); ?></button>
+				<button type="button" class="button" id="pdfforge_icon_image_remove" style="<?php echo $icon_image_id ? '' : 'display:none'; ?>"><?php esc_html_e( 'Remove', 'pdfforge' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Image or SVG. Overrides the emoji field above.', 'pdfforge' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th><label for="tool_color_override"><?php esc_html_e( 'Color override', 'pdfforge' ); ?></label></th>
+			<td>
+				<input type="color" name="tool_color_override" id="tool_color_override" value="<?php echo esc_attr( $color_override ?: '#7c5cff' ); ?>">
+				<label style="margin-left:8px">
+					<input type="checkbox" name="tool_color_clear" id="tool_color_clear" value="1" <?php checked( ! $color_override ); ?>>
+					<?php esc_html_e( 'Inherit from category (ignore colour picker)', 'pdfforge' ); ?>
+				</label>
+				<p class="description"><?php esc_html_e( 'Leave "Inherit" checked to use the category colour. Uncheck to set a custom colour.', 'pdfforge' ); ?></p>
+			</td>
+		</tr>
+	</table>
+	<script>
+	(function($) {
+		var mediaUploader;
+		$('#pdfforge_icon_image_btn').on('click', function(e) {
+			e.preventDefault();
+			if (mediaUploader) { mediaUploader.open(); return; }
+			mediaUploader = wp.media({
+				title: '<?php echo esc_js( __( 'Select Icon Image', 'pdfforge' ) ); ?>',
+				button: { text: '<?php echo esc_js( __( 'Use this image', 'pdfforge' ) ); ?>' },
+				multiple: false,
+				library: { type: ['image'] }
+			});
+			mediaUploader.on('select', function() {
+				var attachment = mediaUploader.state().get('selection').first().toJSON();
+				$('#pdfforge_icon_image_id').val(attachment.id);
+				$('#pdfforge_icon_image_preview').html('<img src="' + attachment.url + '" style="max-width:100px;max-height:100px" alt="">');
+				$('#pdfforge_icon_image_remove').show();
+			});
+			mediaUploader.open();
+		});
+		$('#pdfforge_icon_image_remove').on('click', function(e) {
+			e.preventDefault();
+			$('#pdfforge_icon_image_id').val('');
+			$('#pdfforge_icon_image_preview').html('');
+			$(this).hide();
+		});
+	})(jQuery);
+	</script>
 	<?php
 }
 
@@ -240,13 +391,21 @@ function pdfforge_tool_meta_save( $post_id ) {
 	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
 	if ( ! current_user_can( 'edit_post', $post_id ) ) return;
 
-	if ( isset( $_POST['tool_icon_color'] ) ) {
-		update_post_meta( $post_id, '_tool_icon_color', sanitize_hex_color( $_POST['tool_icon_color'] ) );
+	if ( isset( $_POST['tool_description'] ) ) {
+		update_post_meta( $post_id, '_tool_description', sanitize_textarea_field( wp_unslash( $_POST['tool_description'] ) ) );
 	}
-	if ( isset( $_POST['tool_icon_symbol'] ) ) {
-		update_post_meta( $post_id, '_tool_icon_symbol', sanitize_text_field( $_POST['tool_icon_symbol'] ) );
+	if ( isset( $_POST['tool_icon_emoji'] ) ) {
+		update_post_meta( $post_id, '_tool_icon_emoji', sanitize_text_field( wp_unslash( $_POST['tool_icon_emoji'] ) ) );
 	}
-	update_post_meta( $post_id, '_tool_featured', isset( $_POST['tool_featured'] ) ? '1' : '0' );
+	$icon_image_id = isset( $_POST['tool_icon_image_id'] ) ? absint( $_POST['tool_icon_image_id'] ) : 0;
+	update_post_meta( $post_id, '_tool_icon_image_id', $icon_image_id );
+
+	// Empty string = inherit from category; only store a colour if the checkbox is unchecked
+	if ( ! empty( $_POST['tool_color_clear'] ) ) {
+		update_post_meta( $post_id, '_tool_color_override', '' );
+	} elseif ( isset( $_POST['tool_color_override'] ) ) {
+		update_post_meta( $post_id, '_tool_color_override', sanitize_hex_color( $_POST['tool_color_override'] ) );
+	}
 }
 add_action( 'save_post_pdfforge_tool', 'pdfforge_tool_meta_save' );
 

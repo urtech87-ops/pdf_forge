@@ -85,15 +85,17 @@ get_header();
 				<h2 class="tools-heading"><?php esc_html_e( 'Popular PDF Tools', 'pdfforge' ); ?></h2>
 			</div>
 
-			<!-- Category filter tabs -->
+			<!-- Category filter tabs — only categories that actually have tools -->
 			<?php
-			$categories = array_unique( array_column( pdfforge_sample_tools(), 'category' ) );
+			$all_tools       = pdfforge_get_tools();
+			$tab_categories  = array_unique( array_column( $all_tools, 'category' ) );
+			$tab_categories  = array_filter( $tab_categories ); // drop empty strings
 			?>
 			<div class="filter-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Filter by category', 'pdfforge' ); ?>">
 				<button class="filter-tab active" role="tab" aria-selected="true" data-filter="all">
 					<?php esc_html_e( 'All', 'pdfforge' ); ?>
 				</button>
-				<?php foreach ( $categories as $cat ) : ?>
+				<?php foreach ( $tab_categories as $cat ) : ?>
 				<button class="filter-tab" role="tab" aria-selected="false" data-filter="<?php echo esc_attr( $cat ); ?>">
 					<?php echo esc_html( $cat ); ?>
 				</button>
@@ -102,12 +104,16 @@ get_header();
 
 			<!-- Tool cards grid -->
 			<div class="tools-grid" id="toolsGrid">
-				<?php foreach ( pdfforge_sample_tools() as $tool ) : ?>
+				<?php foreach ( $all_tools as $tool ) : ?>
 				<a href="<?php echo esc_url( $tool['url'] ); ?>"
 				   class="tool-card"
 				   data-category="<?php echo esc_attr( $tool['category'] ); ?>">
 					<span class="tool-icon" style="background:<?php echo esc_attr( $tool['color'] ); ?>" aria-hidden="true">
-						<?php echo esc_html( $tool['symbol'] ); ?>
+						<?php if ( ! empty( $tool['icon_url'] ) ) : ?>
+							<img src="<?php echo esc_url( $tool['icon_url'] ); ?>" alt="<?php echo esc_attr( $tool['name'] ); ?>" style="width:1em;height:1em;object-fit:contain">
+						<?php else : ?>
+							<?php echo esc_html( $tool['symbol'] ); ?>
+						<?php endif; ?>
 					</span>
 					<div class="tool-info">
 						<span class="tool-name"><?php echo esc_html( $tool['name'] ); ?></span>
