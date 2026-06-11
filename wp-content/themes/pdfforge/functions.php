@@ -38,6 +38,48 @@ function pdfforge_assets() {
 add_action( 'wp_enqueue_scripts', 'pdfforge_assets' );
 
 /* -----------------------------------------------------------------------
+ * Enqueue tool-specific assets — only on their individual tool pages
+ * --------------------------------------------------------------------- */
+function pdfforge_tool_assets() {
+	if ( ! is_singular( 'pdfforge_tool' ) ) return;
+
+	$slug = get_post_field( 'post_name', get_the_ID() );
+	$dir  = get_template_directory_uri();
+	$path = get_template_directory();
+
+	if ( 'merge-pdf' === $slug ) {
+		wp_enqueue_script(
+			'pdf-lib',
+			$dir . '/assets/js/lib/pdf-lib.min.js',
+			[],
+			'1.17.1',
+			true
+		);
+		wp_enqueue_script(
+			'sortablejs',
+			$dir . '/assets/js/lib/Sortable.min.js',
+			[],
+			'1.15.6',
+			true
+		);
+		wp_enqueue_script(
+			'pdfforge-merge-pdf',
+			$dir . '/assets/js/tools/merge-pdf.js',
+			[ 'pdf-lib', 'sortablejs' ],
+			'1.0.0',
+			true
+		);
+		wp_enqueue_style(
+			'pdfforge-merge-pdf',
+			$dir . '/assets/css/tools/merge-pdf.css',
+			[],
+			'1.0.0'
+		);
+	}
+}
+add_action( 'wp_enqueue_scripts', 'pdfforge_tool_assets' );
+
+/* -----------------------------------------------------------------------
  * "Tool" Custom Post Type
  * --------------------------------------------------------------------- */
 function pdfforge_register_cpt() {
